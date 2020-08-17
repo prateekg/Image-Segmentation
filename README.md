@@ -18,5 +18,5 @@ Use the datasets from the Kaggle competition: [Click Here](https://www.kaggle.co
 3. Change the path for the training data.
 
 ```python
-python Image-Segmentation.py
+python Image_Segmentation.py
 ```
