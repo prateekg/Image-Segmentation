@@ -20,3 +20,9 @@ Use the datasets from the Kaggle competition: [Click Here](https://www.kaggle.co
 ```python
 python Image_Segmentation.py
 ```
+
+# Next Steps
+
+1. Improve the loss function with an additional softmax layer in end
+2. Torch model save
+3. Write the validation and testing part
