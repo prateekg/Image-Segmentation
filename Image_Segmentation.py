@@ -173,12 +173,12 @@ for epoch in epochs:
         outputs = model(torch.Tensor(x).permute(0, 3, 1, 2))
         outputs = outputs.permute(0, 2, 3, 1)
         m = outputs.shape[0]
-        outputs = outputs.resize(m*width_out*height_out, 2)
-        y = torch.Tensor(y).resize(m*width_out*height_out)
+        outputs = outputs.resize(m*width_out*height_out, out_class)
+        y = torch.Tensor(y).resize(m*width_out*height_out, out_class)
         loss = criterion(outputs, y.long())
         loss.backward()
         optimizer.step()
         print("Batch loss: %d", loss)
         total_loss += loss
-
     print("Average epoch Loss: %d", total_loss/train_steps)
+
