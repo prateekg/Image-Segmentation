@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import random
+from tqdm import tqdm
 
 import torchvision
 from torchvision.transforms import transforms
@@ -144,41 +145,56 @@ class UNet(nn.Module):
 
 
 if __name__=="__main__":
-    #Image Size -> 1x1x512x512
-image_size = 512
-train_path = "D:/Image Segmentation/data/data-science-bowl-2018/stage1_train/"
-epochs = 5
-batch_size = 8
-train_ids = next(os.walk(train_path))[1]
-val_data_size = 15
-valid_ids = train_ids[:val_data_size]
-train_ids = train_ids[val_data_size:]
+    image_size = 512
+    train_path = "D:\Image-Segmentation\data\data-science-bowl-2018\stage1_train/"
+    test_path = "D:\Image-Segmentation\data\data-science-bowl-2018\stage1_test/"
+    epochs = 5
+    batch_size = 8
+    train_ids = next(os.walk(train_path))[1]
+    val_data_size = 15
+    valid_ids = train_ids[:val_data_size]
+    train_ids = train_ids[val_data_size:]
 
-train_gen = DataGen(train_ids, train_path, image_size=image_size, batch_size=batch_size)
-valid_gen = DataGen(valid_ids, train_path, image_size=image_size, batch_size=batch_size)
-train_steps = len(train_ids) // batch_size
-valid_steps = len(valid_ids) // batch_size
+    train_gen = DataGen(train_ids, train_path, image_size=image_size, batch_size=batch_size)
+    valid_gen = DataGen(valid_ids, train_path, image_size=image_size, batch_size=batch_size)
+    train_steps = len(train_ids) // batch_size
+    valid_steps = len(valid_ids) // batch_size
 
-in_channel = 3
-out_class = 2
-model = UNet(in_channel, out_class)
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.99)
+    in_channel = 3
+    out_class = 2
+    model = UNet(in_channel, out_class)
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.99)
 
-width_out = height_out = width_in = height_in = image_size
-for epoch in epochs:
-    total_loss = 0
-    for i in range(train_steps):
+    width_out = height_out = width_in = height_in = image_size
+    model.train()
+    for epoch in tqdm(range(epochs)):
+        total_loss = 0
+        for i in range(train_steps):
+            x, y = train_gen.__getitem__(i)
+            outputs = model(torch.Tensor(x).permute(0, 3, 1, 2))
+            outputs = outputs.permute(0, 2, 3, 1)
+            m = outputs.shape[0]
+            outputs = outputs.resize(m*width_out*height_out, out_class)
+            y = torch.Tensor(y).resize(m*width_out*height_out, 1)
+            # Entropy performs the argmax over channels
+            loss = criterion(outputs, y.long())
+            loss.backward()
+            optimizer.step()
+            print("Batch loss: %d", loss)
+            total_loss += loss
+            print("Average epoch Loss: %d", total_loss/train_steps)
+    PATH = "./" + "is.pth"
+    torch.save(model.state_dict(), PATH)
+
+    test_gen = DataGen(test_ids, test_path, image_size=image_size, batch_size=1)
+    test_steps = len(train_ids) // 1
+    model = UNet(in_channel, out_class)
+    model.load_state_dict(torch.load(PATH))
+    model.eval()
+    for i in range(test_steps):
         x, y = train_gen.__getitem__(i)
         outputs = model(torch.Tensor(x).permute(0, 3, 1, 2))
         outputs = outputs.permute(0, 2, 3, 1)
-        m = outputs.shape[0]
-        outputs = outputs.resize(m*width_out*height_out, out_class)
-        y = torch.Tensor(y).resize(m*width_out*height_out, out_class)
-        loss = criterion(outputs, y.long())
-        loss.backward()
-        optimizer.step()
-        print("Batch loss: %d", loss)
-        total_loss += loss
-    print("Average epoch Loss: %d", total_loss/train_steps)
-
+        outputs = torch.max(outputs, 3)
+        # Entropy performs the argmax over channels
